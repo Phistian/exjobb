@@ -1,0 +1,15 @@
+remake_dict = {"label":np.zeros(6400, dtype=np.int64), "centroid-0": np.zeros(6400), "centroid-1": np.zeros(6400), "frame": np.zeros(6400, dtype=np.int64), "solution": np.zeros(6400), "set": np.zeros(6400, dtype=np.int64)}
+t = 0
+for i in range(6400):
+    if not np.mod(i, 4):
+        t = t + 1
+    remake_dict["frame"][i] = np.int64(t)
+
+for i in range(6400):
+    remake_dict["label"][i] = np.int64(i)
+
+
+np.save("remake dict", remake_dict, allow_pickle=True)
+
+df = pd.DataFrame.from_dict(remake_dict)
+print(df)
