@@ -272,7 +272,7 @@ print('Total runtime: ' + str(T * its)[:10] + ' s, (' + str(T)[:] + ' s per iter
 
 ##SAVING DATA
 
-np.save('exjobb/miguel/datasets/' + potential_type + '/N' + str(N) + ' samples' + str(
+np.save('exjobb/miguel/datasets/' + potential_type + '/PASSIVE N' + str(N) + ' samples' + str(
     sample_its) + ' F_P' + str(F_P) + 'COLAB.npy', {**data_dict,
                                                     **{'box_len': box_len, 'interaction_radius': interaction_radius,
                                                        'potential_type': potential_type}})
