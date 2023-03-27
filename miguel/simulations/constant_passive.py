@@ -6,6 +6,8 @@ import pickle
 import random
 from pathlib import Path
 
+# OBS! Particle dynamics follow normal passive force, only the solution is constant.
+
 ##INFO
 p_constant = 5
 potential_type = 'tslj'
