@@ -50,7 +50,7 @@ def get_particles(n_particles=N):
             coord2 = coordinates[j]
             d_v = coord1 - coord2
             d = np.sqrt(d_v.dot(d_v))
-            if d < length_scale * 0.95:
+            if d < length_scale * 1.1:
                 coord1 = np.random.uniform(-box_len / 2, box_len / 2, 2)
                 j = 0
             else:
