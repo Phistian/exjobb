@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pickle
 import random
+from pathlib import Path
 
 ##INFO
 p_constant = 5
@@ -271,9 +272,13 @@ T = (toc - tic) / its
 print('Total runtime: ' + str(T * its)[:10] + ' s, (' + str(T)[:] + ' s per iteration)')
 
 ##SAVING DATA
-
-np.save('exjobb/miguel/datasets/' + potential_type + '/PASSIVE N' + str(N) + ' samples' + str(
-    sample_its) + ' F_P' + str(F_P) + 'COLAB.npy', {**data_dict,
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+path = Path(dir_path)
+parent_path = path.parent.absolute()
+datasets_path = str(parent_path) + '/datasets/'
+np.save(datasets_path + potential_type + '/CPASSIVE N' + str(N) + ' samples' + str(
+    sample_its) + ' F_P' + str(F_P), {**data_dict,
                                                     **{'box_len': box_len, 'interaction_radius': interaction_radius,
                                                        'potential_type': potential_type}})
 
