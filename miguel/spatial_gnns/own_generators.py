@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from .own_graphs import GraphExtractor
+from own_graphs import GraphExtractor
 
 from deeptrack.generators import ContinuousGenerator
 from deeptrack.utils import safe_call
 
-from . import augmentations
+import augmentations
 
 
 def GraphGenerator(
