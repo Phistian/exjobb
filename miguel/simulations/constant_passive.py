@@ -279,7 +279,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 path = Path(dir_path)
 parent_path = path.parent.absolute()
 datasets_path = str(parent_path) + '/datasets/'
-np.save(datasets_path + potential_type + '/CPASSIVE N' + str(N) + ' samples' + str(
+np.save(datasets_path + potential_type + '/CPASSIVE' + str(p_constant) + 'N' + str(N) + ' samples' + str(
     sample_its) + ' F_P' + str(F_P), {**data_dict,
                                                     **{'box_len': box_len, 'interaction_radius': interaction_radius,
                                                        'potential_type': potential_type}})
