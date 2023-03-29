@@ -32,8 +32,8 @@ F_P = 60
 energy_parameter = 1
 interact_across_borders = True
 
-its = int(1e3)  # 1e5
-sample_its = 10
+its = int(1e5)  # 1e5
+sample_its = 100
 sample_indices_vector = np.linspace(0, its - 1, sample_its, dtype=int)
 
 ADDITIONS = [np.array([0, 0]), np.array([box_len, 0]), np.array([-box_len, 0]), np.array([0, box_len]),
@@ -280,7 +280,7 @@ path = Path(dir_path)
 parent_path = path.parent.absolute()
 datasets_path = str(parent_path) + '/datasets/'
 np.save(datasets_path + potential_type + '/CPASSIVE' + str(p_constant) + 'N' + str(N) + ' samples' + str(
-    sample_its) + ' F_P' + str(F_P), {**data_dict,
+    sample_its) + ' simsteps' + str(its), {**data_dict,
                                                     **{'box_len': box_len, 'interaction_radius': interaction_radius,
                                                        'potential_type': potential_type}})
 
