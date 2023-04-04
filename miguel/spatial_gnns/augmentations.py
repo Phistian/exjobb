@@ -206,17 +206,6 @@ def GetFeature(full_graph, **kwargs):
                 np.max(full_graph[-1][0][:, 0]) + 1),
         )
         >> dt.Lambda(
-            GetSubGraphFromLabel,
-            samples=lambda: np.array(
-                sorted(
-                    random.sample(
-                        list(full_graph[-1][0][:, -1]),
-                        np.random.randint(5, 12),
-                    )
-                )
-            ),
-        )
-        >> dt.Lambda(
             AugmentCentroids,
             rotate=lambda: np.random.rand() * 2 * np.pi,
             translate=lambda: np.random.randn(2) * 0.05,
