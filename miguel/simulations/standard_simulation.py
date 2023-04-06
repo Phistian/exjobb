@@ -8,31 +8,39 @@ from pathlib import Path
 
 ##INFO
 
+##PARAMETERS
+rho = 0.35 # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
+F_P = 60
+N = 5
+its = int(1e3)  # 1e5
+sample_its = 100
+n_resets = 10 # including first run
+interact_across_borders = True
 potential_type = 'tslj'
+
+
+##VARIABLES AND CONSTANTS
+its_per_reset = int(its/(n_resets+1))
+reset_indices = np.linspace(its_per_reset, its - its_per_reset, n_resets, dtype=int)
+sample_indices_vector = np.linspace(0, its - 1, sample_its, dtype=int)
 boltzmann = 1
+energy_parameter = 1
 # temperature = 0.01
 diffusion_translational = 0.01
 diffusion_rotational = 1  # Dr ∈ {0.25, 1.0}
 dt = 1e-5
-rho = 0.2  # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
 length_scale = 1
 interaction_radius = 3 * length_scale
 duplicate_search_threshold = interaction_radius
-N = 10
+dx = length_scale / 10000
+
+
 particle_area = (length_scale / 2) ** 2 * np.pi
 box_area = N * particle_area / rho
 box_len = np.sqrt(box_area)
-if box_len / 2 < duplicate_search_threshold:
+if box_len < duplicate_search_threshold:
     raise Exception("The box length is very small in comparison to the interaction radius")
 
-increment = length_scale / 10000
-F_P = 60
-energy_parameter = 1
-interact_across_borders = True
-
-its = int(1e3)  # 1e5
-sample_its = 10
-sample_indices_vector = np.linspace(0, its - 1, sample_its, dtype=int)
 
 ADDITIONS = [np.array([0, 0]), np.array([box_len, 0]), np.array([-box_len, 0]), np.array([0, box_len]),
              np.array([0, -box_len]), np.array([box_len, box_len]), np.array([-box_len, box_len]),
@@ -77,9 +85,9 @@ def get_lj_potential(distance, truncation_distance=box_len, truncation_value=0):
 
 def get_lj_potential_gradient(distance_vector, truncation_distance, truncation_value):
     distance = np.sqrt(distance_vector.dot(distance_vector))
-    difference = get_lj_potential(distance + increment, truncation_distance, truncation_value) - get_lj_potential(
-        distance - increment, truncation_distance, truncation_value)
-    gradient_magnitude = difference / (2 * increment)
+    difference = get_lj_potential(distance + dx, truncation_distance, truncation_value) - get_lj_potential(
+        distance - dx, truncation_distance, truncation_value)
+    gradient_magnitude = difference / (2 * dx)
     gradient = gradient_magnitude * -distance_vector / distance  # minus the distance vector since this gives the correct force directions w.r.t. potential gradient sign
     return gradient
 
@@ -110,8 +118,8 @@ def get_srs_potential(r, n=14, k0=10 / length_scale, eps_s=1, sig_s=2.5):
 
 def get_srs_potential_gradient(distance_vector):
     distance = np.sqrt(distance_vector.dot(distance_vector))
-    difference = get_srs_potential(distance + increment) - get_srs_potential(distance - increment)
-    gradient_magnitude = difference / (2 * increment)
+    difference = get_srs_potential(distance + dx) - get_srs_potential(distance - dx)
+    gradient_magnitude = difference / (2 * dx)
     gradient = gradient_magnitude * -distance_vector / distance  # minus the distance vector since this gives the correct force directions w.r.t. potential gradient sign
     return gradient
 
@@ -255,6 +263,8 @@ full_data_dict = {'centroid-0': all_centroids_x, 'centroid-1': all_centroids_y, 
 coordinates, orientations = get_particles()
 tic = time.time()
 for t in range(its):
+    if t in reset_indices:
+        coordinates, orientations = get_particles()
     update_data(coordinates, orientations, full_data_dict, potential_type, t)
     if not np.mod(t, its / 100):
         toc = time.time()
