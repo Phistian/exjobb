@@ -5,16 +5,17 @@ import pandas as pd
 import pickle
 import random
 from pathlib import Path
+import matplotlib.cm as cm
 
 ##INFO
 
 ##PARAMETERS
-rho = 0.35 # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
+rho = 0.2 # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
 F_P = 60
 N = 5
 its = int(1e3)  # 1e5
-sample_its = 100
-n_resets = 10 # including first run
+sample_its = 10
+n_resets = 100 # including first run
 interact_across_borders = True
 potential_type = 'tslj'
 
@@ -35,8 +36,8 @@ duplicate_search_threshold = interaction_radius
 dx = length_scale / 10000
 
 
-particle_area = (length_scale / 2) ** 2 * np.pi
-box_area = N * particle_area / rho
+one_particle_area = (length_scale / 2) ** 2 * np.pi
+box_area = N * one_particle_area / rho
 box_len = np.sqrt(box_area)
 if box_len < duplicate_search_threshold:
     raise Exception("The box length is very small in comparison to the interaction radius")
@@ -51,18 +52,27 @@ def get_particles(n_particles=N):
     coordinates = np.zeros((n_particles, 2))
 
     # Ensuring that particles don't start too close to each other
+    
+    coordinates[0] = np.random.uniform(-box_len / 2, box_len / 2, 2)
     coord1 = np.random.uniform(-box_len / 2, box_len / 2, 2)
-    coord2 = np.zeros(2)
-    for i in range(n_particles):
+    
+    for i in np.arange(1, n_particles):
         j = 0
         while j < i:
+            collision_detected = False
             coord2 = coordinates[j]
-            d_v = coord1 - coord2
-            d = np.sqrt(d_v.dot(d_v))
-            if d < length_scale * 1.1:
-                coord1 = np.random.uniform(-box_len / 2, box_len / 2, 2)
-                j = 0
-            else:
+        
+            for addition in ADDITIONS:
+
+                d_v = coord1 - (coord2 + addition)
+                d = np.sqrt(d_v.dot(d_v))
+                if d < length_scale * 1.1:
+                    collision_detected = True
+                    coord1 = np.random.uniform(-box_len / 2, box_len / 2, 2)
+                    j = 0
+                    break
+                    
+            if not collision_detected:
                 j += 1
         coordinates[i] = coord1
 
@@ -201,13 +211,36 @@ def update_data(coordinates, orientations, full_data_dict, potential_key, t):
 
     for i, pos0 in enumerate(coordinates):
         gradients_sum = np.zeros(2)
-        for addition in ADDITIONS:
-            for j, pos1 in enumerate(coordinates + addition):
-                d_v = pos1 - pos0
+        for j, pos1 in enumerate(coordinates): 
+            # Finding all particles close enough and adding their contribution to gradient_sum. 
+            # Each particle can only be seen once, and their closest reflection is chosen if multiple refl. are close enough.
+            d_v_min = -1
+            d_min = -1
+            chosen_pos1_rfl = [0,0]
+            for addition in ADDITIONS:
+                pos1_rfl = pos1 + addition
+                d_v = pos1_rfl - pos0
                 d = np.sqrt(d_v.dot(d_v))
                 if d < duplicate_search_threshold and i != j:
-                    gradients_sum += get_potential_gradient(d_v, potential_key)
-
+                    if d < d_min or d_min == -1:
+                        d_v_min = d_v
+                        d_min = d
+                        chosen_pos1_rfl = pos1_rfl
+            if d_min != -1:
+                gradients_sum += get_potential_gradient(d_v_min, potential_key)
+                '''
+                if i == 0 and t == 0:
+                    plt.scatter(chosen_pos1_rfl[0],chosen_pos1_rfl[1], color=[0,1-j/N,j/N])
+                '''
+        '''
+        if i== 0 and t == 0:
+            plt.plot([-box_len/2, box_len/2, box_len/2, -box_len/2, -box_len/2], [-box_len/2, -box_len/2, box_len/2, box_len/2, -box_len/2], color= [0,0,0])
+            plt.scatter(pos0[0], pos0[1], color = [1,0,0])
+            plt.xlim([-box_len*3/2, box_len*3/2])
+            plt.ylim([-box_len*3/2, box_len*3/2])
+            plt.gca().set_aspect('equal')
+            plt.show()
+        '''
         velocity, active_vel, passive_vel = get_velocity_separated(orientations[i], F_P,
                                                                    gradients_sum)  # in this case, velocity = force
         angular_diffusion_step = np.sqrt(2 * diffusion_rotational * dt) * np.random.randn()
@@ -291,7 +324,16 @@ np.save(datasets_path + potential_type + '/N' + str(N) + ' samples' + str(
     sample_its) + ' F_P' + str(F_P), {**data_dict,
                                                     **{'box_len': box_len, 'interaction_radius': interaction_radius,
                                                        'potential_type': potential_type}})
-
+#Finding max
+maxima = np.zeros(4)
+for i in range(len(all_solutions)):
+    for j in range(4):
+        if maxima[j] < np.abs(all_solutions[i][j]):
+            maxima[j] = abs(all_solutions[i][j])
+            if maxima[j] > 300:
+                print(i)
+          
+print(maxima)
 ##PLOTS
 color_v = plt.cm.brg(np.linspace(0, 1, N))
 for i in range(N):
