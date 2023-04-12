@@ -1,9 +1,21 @@
+import sys
+from pathlib import Path
+cur_path = Path(__file__).parent.resolve()
+
+parent_path = cur_path.parent.resolve()
+exjobb_address = str(parent_path) + "\\.."
+spatial_address = str(parent_path) + '\\spatial_gnns'
+datasets_address = str(parent_path) + '\\datasets'
+histories_address = str(parent_path) + '\\training_results/saved_histories'
+models_address = str(parent_path) + '\\training_results\\saved_models'
+sys.path.append(spatial_address)
+
 import deeptrack as dt
 from deeptrack.models.gnns.generators import GraphGenerator
 from deeptrack.models.gnns.graphs import GraphExtractor
 from deeptrack.models.gnns.generators import GraphGenerator
-from spatial_graphs import own_graphs
-from spatial_graphs import own_generators
+import own_graphs
+import own_generators
 
 import tensorflow as tf
 
@@ -20,6 +32,7 @@ import random
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
+#datasets.load("BFC2Cells")
 nodesdf = pd.read_csv("datasets/BFC2DLMuSCTra/nodesdf.csv")
 
 # normalize centroids between 0 and 1
@@ -82,7 +95,7 @@ generator = own_graphs.GraphExtractor(
 )
 '''
 
-
+'''
 generator = GraphGenerator(
     nodesdf=nodesdf,
     properties=["centroid"],
@@ -91,13 +104,16 @@ generator = GraphGenerator(
     **variables.properties()
 )
 '''
-generator = own_graphs.GraphGenerator(
+
+generator = own_generators.GraphGenerator(
     nodesdf=nodesdf,
     properties=["centroid"],
     **variables.properties(),
+    min_data_size=95,
+    max_data_size=96,
     box_len=1
 )
-'''
+
 with generator:
     history = model.fit(generator, epochs=100)
 
