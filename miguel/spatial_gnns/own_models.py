@@ -115,10 +115,9 @@ class OneMessagePassingLayerMPNGNN(KerasModel):
         )
         gb = graph_block(
             base_layer_dimensions[0],
-            name="graph_block_" + str(1),
+            name="One and only graph block",
         )
-        # Same message passing layer applied twice, like in active net ...? Check
-        layer = gb(layer)
+
         layer = gb(layer)
 
         # Split nodes and edges
