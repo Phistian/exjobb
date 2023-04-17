@@ -204,16 +204,7 @@ def GetFeature(full_graph, **kwargs):
             GetSubSet,
             randset=lambda: np.random.randint(
                 np.max(full_graph[-1][0][:, 0]) + 1),
-        )
-        >> dt.Lambda(
-            AugmentCentroids,
-            rotate=lambda: np.random.rand() * 2 * np.pi,
-            translate=lambda: np.random.randn(2) * 0.05,
-            flip_x=lambda: np.random.randint(2),
-            flip_y=lambda: np.random.randint(2),
-        )
-        >> dt.Lambda(NoisyNode)
-        >> dt.Lambda(NodeDropout, dropout_rate=0.03)
+        )        
     )
 
 
