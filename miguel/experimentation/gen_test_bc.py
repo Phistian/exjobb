@@ -16,6 +16,7 @@ from deeptrack.models.gnns.graphs import GraphExtractor
 from deeptrack.models.gnns.generators import GraphGenerator
 import own_graphs
 import own_generators
+import own_models
 
 import tensorflow as tf
 
@@ -55,7 +56,7 @@ variables = dt.DummyFeature(
     nofframes=3, # time window to associate nodes (in frames)
 )
 
-model = dt.models.gnns.MPNGNN(
+model = own_models.OneMessagePassingLayerMPNGNN(
     dense_layer_dimensions=(64, 96,),      # number of features in each dense encoder layer
     base_layer_dimensions=(96, 96, 96),    # Latent dimension throughout the message passing layers
     number_of_node_features=2,             # Number of node features in the graphs
@@ -113,9 +114,11 @@ generator = own_generators.GraphGenerator(
     max_data_size=96,
     box_len=1
 )
-
+import time
 with generator:
-    history = model.fit(generator, epochs=100)
+    a = generator.data
+    print(a)
+
 
 
 model.save(f"saved_models/{modelname}")

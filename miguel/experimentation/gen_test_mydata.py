@@ -1,9 +1,22 @@
+import sys
+from pathlib import Path
+cur_path = Path(__file__).parent.resolve()
+
+parent_path = cur_path.parent.resolve()
+exjobb_address = str(parent_path) + "\\.."
+spatial_address = str(parent_path) + '\\spatial_gnns'
+datasets_address = str(parent_path) + '\\datasets'
+histories_address = str(parent_path) + '\\training_results/saved_histories'
+models_address = str(parent_path) + '\\training_results\\saved_models'
+sys.path.append(spatial_address)
+
 import deeptrack as dt
 from deeptrack.models.gnns.generators import GraphGenerator
 from deeptrack.models.gnns.graphs import GraphExtractor
 from deeptrack.models.gnns.generators import GraphGenerator
-from spatial_graphs import own_graphs
-from spatial_graphs import own_generators
+import own_graphs
+import own_generators
+import own_models
 
 import tensorflow as tf
 
@@ -21,22 +34,44 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 
-def scale_solution(inputdf, a_scale=1, p_scale=1):
+def make_sets_equal_to_frames(input_df):
+    df = input_df.copy()
+    new_sets = df["frame"].to_numpy().copy()
+    df["set"] = new_sets
+    return df
+
+
+def scale_solution(inputdf, multipliers=[1, 1, 1, 1], solution_dim=4, only_passive=False):
     # This function normalizes all separate dimensions of the solution, and optionally adds a scaling factor to the active and/or passive force
+    if len(multipliers) != solution_dim:
+        raise Exception("Multipliers must be of same dimension as node labels.")
+
     df = inputdf.copy()
     n = df.shape[0]
-    maxima = np.zeros(4)
-    # finding max
+    maxima = np.zeros(solution_dim)
+    # Finding max
     for i in df.index:
-        for j in range(4):
+        for j in range(solution_dim):
             if maxima[j] < np.abs(df.at[i, "solution"][j]):
                 maxima[j] = abs(df.at[i, "solution"][j])
-    # scaling
-    scales = np.array([a_scale, a_scale, p_scale, p_scale]) / maxima
+                print(maxima[j], end=' ')
+
+    # Share maximum across axes
+    maxima[0:2] = np.max(maxima[0:2])
+    if not only_passive:
+        maxima[2:4] = np.max(maxima[2:4])
+
+    # Apply scaling
+    scalings = np.array(multipliers) / maxima
     for i in df.index:
-        for j in range(4):
-            df.at[i, "solution"][j] = df.at[i, "solution"][j] * scales[j]
-    return df, scales
+        for j in range(solution_dim):
+            df.at[i, "solution"][j] = df.at[i, "solution"][j] * scalings[j]
+
+    if only_passive:
+        scalings_dict = {"passive": scalings[0]}
+    else:
+        scalings_dict = {"active": scalings[0], "passive": scalings[2]}
+    return df, scalings_dict, maxima
 
 
 def set_real_labels(nodesdf):
@@ -71,6 +106,7 @@ def setstoframe(df):
     dfcpy["set"] = framecol
     return dfcpy
 
+
 def make_frames_start_at_zero(df):
     dfcpy = df.copy()
     framecol = deepcopy(dfcpy["frame"]).to_numpy()
@@ -78,6 +114,7 @@ def make_frames_start_at_zero(df):
     new_framecol = framecol - minframe
     dfcpy["frame"] = new_framecol
     return dfcpy
+
 
 def subset_train_and_val(input_df, val_ratio):
     df = input_df.copy()
@@ -92,11 +129,13 @@ def subset_train_and_val(input_df, val_ratio):
     train_df = make_frames_start_at_zero(train_df)
     train_df = train_df.reset_index(drop=True)
     val_rows = cutoff_index + 1
-    return train_df, val_df
+    return train_df, val_df, val_rows, n_particles
+
 
 modelname = "testingtesting"
-data_dict = np.load("datasets/N14 samples10 F_P60COLAB.npy", allow_pickle=True).item() # load data
+data_dict = np.load(datasets_address + "\\tslj\\N5 samples1000 F_P60.npy", allow_pickle=True).item() # load data
 ## Extract some variables and leave only the dictionary which will be input to the graph extractor
+node_labels_dim = len(data_dict["solution"][0])
 box_len = data_dict['box_len']
 del data_dict['box_len']
 interaction_radius = data_dict['interaction_radius']
@@ -104,61 +143,71 @@ del data_dict["interaction_radius"]
 potential_type = data_dict['potential_type']
 del data_dict["potential_type"]
 
+
 ## A pandas dataframe is needed as input to the graph extractor.
 nodesdf = pd.DataFrame.from_dict(data_dict)
-n_detections = nodesdf.shape[0]
 
-## Normalize node centroids and orientations
-max_vals = {"centroid-0" : box_len/2, "centroid-1" : box_len/2, "orientation" : np.pi*2, 'frame': nodesdf["frame"].max(), "solution0": nodesdf["solution"]}
+
+## Make centroids positive only, with zero in bottom left corner of box
+nodesdf.loc[:, "centroid-0"] = nodesdf.loc[:, "centroid-0"] + box_len/2
+nodesdf.loc[:, "centroid-1"] = nodesdf.loc[:, "centroid-1"] + box_len/2
+
+
+## Normalize node centroids and orientations so that max is 1
+max_vals = {"centroid-0" : box_len, "centroid-1" : box_len, "orientation" : np.pi*2, 'frame': nodesdf["frame"].max(), "solution0": nodesdf["solution"]}
 for key in ["centroid-0", "centroid-1", "orientation"]:
   nodesdf.loc[:, key] = nodesdf.loc[:, key] / max_vals[key]
 
-## Scale the box length and interaction length as much as the centroids
-scaled_interaction_radius = interaction_radius/max_vals["centroid-0"]
-scaled_box_len = box_len/max_vals["centroid-0"]
 
-## Normalize the solution vector elements and ev. add extra scaling
+## Normalize each column of the solution and ev. add extra scaling to a force type
+a_scale = 1
 p_scale = 1
-a_scale = 0
-nodesdf, scales = scale_solution(nodesdf, p_scale=p_scale, a_scale=a_scale)
+nodesdf, scales, sol_maxima = scale_solution(nodesdf, multipliers=[a_scale, a_scale, p_scale, p_scale], solution_dim=node_labels_dim, only_passive=False)
 
-## Set the labels of the particles
-#nodesdf["label"] = np.arange(0, nodesdf.shape[0])
-#nodesdf.loc[250:, "label"] = 1
+
+## Set the labels so that each particle always has one unique label index
 nodesdf.loc[:, "label"] = 0
 set_real_labels(nodesdf)
 
+
 ## Cut out a validation set, the rest is the training set.
-val_ratio = 0.2
-train_nodesdf, val_nodesdf = subset_train_and_val(nodesdf, val_ratio)
+val_ratio = 0.1
+train_nodesdf, val_nodesdf, val_rows, n_particles = subset_train_and_val(nodesdf, val_ratio)
 
 
-# Remember that from now on, no shuffling before passing into graph extractor
 ## Set the sets so that each frame is seen as one video
 #train_nodesdf = setstoframe(train_nodesdf)
 
+
 ## Shuffle the frames in the training set, and re-index
 #train_nodesdf = shuffle_frames(train_nodesdf)
+
+
+## Set the frames so that the first one is 0 (After the validation split, the frames of the training data might not start at 0)
 train_nodesdf = make_frames_start_at_zero(train_nodesdf)
+train_nodesdf = make_sets_equal_to_frames(train_nodesdf)
+val_nodesdf = make_sets_equal_to_frames(val_nodesdf)
 
-radius = scaled_interaction_radius
-print(f"Scaled interaction radius becomes {scaled_interaction_radius} length units, with box length {scaled_box_len}")
+## Scale the box length and interaction length as much as the centroids
+scaled_interaction_radius = interaction_radius/max_vals["centroid-0"]  # The length at which the potential has come close to 0 (this length is 3 in the simulations).
+scaled_box_len = box_len/max_vals["centroid-0"]
+scaled_lengths_dict = {"length_scale": 1/box_len, "box_len": scaled_box_len, "interaction_radius": scaled_interaction_radius, "max_x": box_len, "max_y": box_len, "max_orientation": 1}
 
+## Set search radius to be used in graph generators to the radius where particle interaction stops
+
+global_search_radius = scaled_interaction_radius
 
 _OUTPUT_TYPE = "nodes"
 
-# Seach radius for the graph edges
-radius = 0.5
-
 variables = dt.DummyFeature(
-    radius=radius,
+    radius=global_search_radius,
     output_type=_OUTPUT_TYPE,
     nofframes=3, # time window to associate nodes (in frames)
 )
 
 model = dt.models.gnns.MPNGNN(
     dense_layer_dimensions=(64, 96,),      # number of features in each dense encoder layer
-    base_layer_dimensions=(96, 96, 96),    # Latent dimension throughout the message passing layers
+    base_layer_dimensions=(96,),    # Latent dimension throughout the message passing layers
     number_of_node_features=3,             # Number of node features in the graphs
     number_of_edge_features=1,             # Number of edge features in the graphs
     number_of_edge_outputs=1,              # Number of predicted features
@@ -196,13 +245,11 @@ generator = own_graphs.GraphExtractor(
 )
 '''
 
-print(train_nodesdf)
-generator = GraphGenerator(
+graph = own_graphs.GraphExtractor(
     nodesdf=train_nodesdf,
     properties=["centroid", "orientation"],
-    min_data_size=95,
-    max_data_size=96,
-    **variables.properties()
+    box_len=1,
+    radius=global_search_radius,
 )
 '''
 generator = own_graphs.GraphGenerator(
@@ -212,8 +259,8 @@ generator = own_graphs.GraphGenerator(
     box_len=1
 )
 '''
-with generator:
-    history = model.fit(generator, epochs=100)
+#with generator:
+#    history = model.fit(generator, epochs=100)
 
 
-model.save(f"saved_models/{modelname}")
+#model.save(f"saved_models/{modelname}")

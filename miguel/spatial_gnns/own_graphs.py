@@ -60,9 +60,13 @@ def GetEdge(
     df["key"] = 1
 
     # Group the dataframe by frame
-    df = df.groupby(["frame"])
-    dfs = [_df for _, _df in df]
-    n_particles = dfs[0].shape[0]
+    framev = df["frame"].to_numpy()
+    if framev[0] != framev[-1]:
+        df = df.groupby(["frame"])
+        dfs = [_df for _, _df in df]
+    else:
+        dfs = []
+        dfs.append(df)
     #new_indices = np.arange(n_particles)
     for idf in dfs:        
         idf.reset_index(drop=True, inplace=True)
