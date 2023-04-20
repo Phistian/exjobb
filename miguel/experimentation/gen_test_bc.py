@@ -87,7 +87,6 @@ generator = GraphExtractor(
     max_data_size=512,
     **variables.properties()
 )
-
 generator = own_graphs.GraphExtractor(
     nodesdf=nodesdf,
     properties=["centroid"],
@@ -114,11 +113,9 @@ generator = own_generators.GraphGenerator(
     max_data_size=96,
     box_len=1
 )
-import time
-with generator:
-    a = generator.data
-    print(a)
 
+with generator:
+    history = model.fit(generator, epochs=100)
 
 
 model.save(f"saved_models/{modelname}")
