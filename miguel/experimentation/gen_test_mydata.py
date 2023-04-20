@@ -132,7 +132,7 @@ def subset_train_and_val(input_df, val_ratio):
     return train_df, val_df, val_rows, n_particles
 
 
-modelname = "testingtesting"
+modelname = "onPCtest2"
 data_dict = np.load(datasets_address + "\\tslj\\N5 samples1000 F_P60.npy", allow_pickle=True).item() # load data
 ## Extract some variables and leave only the dictionary which will be input to the graph extractor
 node_labels_dim = len(data_dict["solution"][0])
@@ -236,7 +236,6 @@ generator = GraphExtractor(
     max_data_size=512,
     **variables.properties()
 )
-
 generator = own_graphs.GraphExtractor(
     nodesdf=nodesdf,
     properties=["centroid"],
@@ -244,7 +243,7 @@ generator = own_graphs.GraphExtractor(
     box_len=1
 )
 '''
-
+'''
 graph = own_graphs.GraphExtractor(
     nodesdf=train_nodesdf,
     properties=["centroid", "orientation"],
@@ -252,15 +251,15 @@ graph = own_graphs.GraphExtractor(
     radius=global_search_radius,
 )
 '''
-generator = own_graphs.GraphGenerator(
+generator = own_generators.GraphGenerator(
     nodesdf=nodesdf,
-    properties=["centroid"],
+    properties=["centroid", "orientation"],
+    batch_size=32,
     **variables.properties(),
     box_len=1
 )
-'''
-#with generator:
-#    history = model.fit(generator, epochs=100)
 
+with generator:
+    history = model.fit(generator, epochs=4)
 
-#model.save(f"saved_models/{modelname}")
+model.save(f"saved_models/{modelname}")
