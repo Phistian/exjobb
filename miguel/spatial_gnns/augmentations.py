@@ -102,6 +102,44 @@ def GetSubGraphFromLabel(samples):
 
     return inner
 
+def ResetIndicesForSubset():
+    """
+    Returns a function that takes a graph and returns a subgraph
+    of the graph based on the trajectory labels.
+    """
+
+    def inner(data):
+        graph, labels, (node_sets, edge_sets) = data
+
+        node_idxs = np.in1d(node_sets[:, 1], node_sets[:, 1])
+        edge_idxs = np.logical_and.reduce(
+            np.isin(edge_sets[:, 1:], edge_sets[:, 1:]), axis=1
+        )
+
+        node_features = graph[0][node_idxs]
+        edge_features, edge_connections = (
+            graph[1][edge_idxs],
+            graph[2][edge_idxs],
+        )
+
+        unique = np.unique(edge_connections)
+        for i, u in enumerate(unique):
+            edge_connections[np.where(edge_connections == u)] = i
+
+        weights = graph[3][edge_idxs]
+
+        node_labels = labels[0][node_idxs]
+        edge_labels = labels[1][edge_idxs]
+        glob_labels = labels[2]
+
+        return (node_features, edge_features, edge_connections, weights), (
+            node_labels,
+            edge_labels,
+            glob_labels,
+        )
+
+    return inner
+
 
 def NoisyNode(num_centroids=2, **kwargs):
     """
@@ -206,10 +244,7 @@ def GetFeature(full_graph, **kwargs):
                 np.max(full_graph[-1][0][:, 0]) + 1),
         )
         >> dt.Lambda(
-            GetSubGraphFromLabel,
-            samples=lambda: np.array(
-                [0, 1, 2, 3, 4]
-            ),
+            ResetIndicesForSubset,
         )
     )
 
