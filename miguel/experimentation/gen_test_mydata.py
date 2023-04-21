@@ -38,6 +38,7 @@ def make_sets_equal_to_frames(input_df):
     df = input_df.copy()
     new_sets = df["frame"].to_numpy().copy()
     df["set"] = new_sets
+    #df.loc[500:, "set"] = 1
     return df
 
 
@@ -54,7 +55,6 @@ def scale_solution(inputdf, multipliers=[1, 1, 1, 1], solution_dim=4, only_passi
         for j in range(solution_dim):
             if maxima[j] < np.abs(df.at[i, "solution"][j]):
                 maxima[j] = abs(df.at[i, "solution"][j])
-                print(maxima[j], end=' ')
 
     # Share maximum across axes
     maxima[0:2] = np.max(maxima[0:2])
@@ -132,7 +132,7 @@ def subset_train_and_val(input_df, val_ratio):
     return train_df, val_df, val_rows, n_particles
 
 
-modelname = "onPCtest2"
+
 data_dict = np.load(datasets_address + "\\tslj\\N5 samples1000 F_P60.npy", allow_pickle=True).item() # load data
 ## Extract some variables and leave only the dictionary which will be input to the graph extractor
 node_labels_dim = len(data_dict["solution"][0])
@@ -205,9 +205,9 @@ variables = dt.DummyFeature(
     nofframes=3, # time window to associate nodes (in frames)
 )
 
-model = dt.models.gnns.MPNGNN(
-    dense_layer_dimensions=(64, 96,),      # number of features in each dense encoder layer
-    base_layer_dimensions=(96,),    # Latent dimension throughout the message passing layers
+model = own_models.OneMessagePassingLayerMPNGNN(
+    dense_layer_dimensions=(9, 81,),      # number of features in each dense encoder layer
+    base_layer_dimensions=(81,),    # Latent dimension throughout the message passing layers
     number_of_node_features=3,             # Number of node features in the graphs
     number_of_edge_features=1,             # Number of edge features in the graphs
     number_of_edge_outputs=1,              # Number of predicted features
@@ -223,7 +223,6 @@ model.compile(
     metrics=['accuracy'],
 )
 
-model.summary()
 
 
 
@@ -251,15 +250,24 @@ graph = own_graphs.GraphExtractor(
     radius=global_search_radius,
 )
 '''
+
 generator = own_generators.GraphGenerator(
-    nodesdf=nodesdf,
+    nodesdf=train_nodesdf[:1000],
     properties=["centroid", "orientation"],
     batch_size=32,
     **variables.properties(),
     box_len=1
 )
+'''
+generator = GraphGenerator(
+    nodesdf=train_nodesdf[:1000],
+    properties=["centroid", "orientation"],
+    **variables.properties(),
 
+)
+'''
 with generator:
     history = model.fit(generator, epochs=4)
 
+modelname = "onPCtest2"
 model.save(f"saved_models/{modelname}")

@@ -204,7 +204,13 @@ def GetFeature(full_graph, **kwargs):
             GetSubSet,
             randset=lambda: np.random.randint(
                 np.max(full_graph[-1][0][:, 0]) + 1),
-        )        
+        )
+        >> dt.Lambda(
+            GetSubGraphFromLabel,
+            samples=lambda: np.array(
+                [0, 1, 2, 3, 4]
+            ),
+        )
     )
 
 
