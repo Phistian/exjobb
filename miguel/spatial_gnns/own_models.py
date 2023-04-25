@@ -115,7 +115,7 @@ class OneLayerFGNN(KerasModel):
         )
         gb = graph_block(
             base_layer_dimensions[0],
-            name="One and only graph block",
+            name="1",
         )
 
         layer = gb(layer)
