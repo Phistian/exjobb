@@ -3,12 +3,44 @@ import pandas as pd
 import itertools
 
 import tqdm
-
+from scipy.spatial.distance import pdist, squareform
 
 import more_itertools as mit
 from operator import is_not
 from functools import partial
 
+def get_dist_matrix_one_frame_per_video(input_df, additions):
+    df_i = input_df.copy()
+    locs = df_i[['centroid-0', 'centroid-1']].values
+    n_particles = len(locs)
+    full_dist_mat = np.zeros((len(additions), n_particles, n_particles))
+    for i, addition in enumerate(additions):
+        df_i['centroid-0'] = input_df['centroid-0'] + addition[0]
+        df_i['centroid-1'] = input_df['centroid-1'] + addition[1]
+        distance_matrix = np.expand_dims(squareform(pdist(df_i[['centroid-0', 'centroid-1']])), axis=0)
+        full_dist_mat[i, :, :] = distance_matrix
+    dist_matrix_with_periodic_boundary = full_dist_mat.max(axis=0)
+
+
+    return dist_matrix_with_periodic_boundary
+
+def get_min_dist_vectors_mtx(df, box_len):
+    dx = np.subtract.outer(df.loc[:,"centroid-0"].values, df.loc[:,"centroid-0"].values)
+    dx = np.where(dx > 0.5 * box_len, dx - box_len, np.where(dx < -0.5 * box_len, dx + box_len, dx))
+    dy = np.subtract.outer(df.loc[:, "centroid-1"].values, df.loc[:, "centroid-1"].values)
+    dy = np.where(dy > 0.5 * box_len, dy - box_len, np.where(dy < -0.5 * box_len, dy + box_len, dy))
+    dist_min = np.stack((dx, dy), axis=0)
+    return dist_min
+
+def v_mtx_to_d_mtx(v_mtx):
+    sq_v = np.square(v_mtx)
+    sq_d = np.sum(sq_v, axis=0)
+    d = np.sqrt(sq_d)
+    return d
+
+def get_distance_matrix(df, box_len):
+    d = v_mtx_to_d_mtx(get_min_dist_vectors_mtx(df, box_len))
+    return d
 
 def GetEdge(
     df: pd.DataFrame,
@@ -39,8 +71,15 @@ def GetEdge(
         A dataframe containing the extracted
         properties of the edges.
     """
+
+
+
     box_len = kwargs["box_len"]
-    reflection_additions = [np.array([box_len, 0]), np.array([-box_len, 0]), np.array([0, box_len]), np.array([0, -box_len]), np.array([box_len, box_len]), np.array([-box_len, box_len]), np.array([box_len, -box_len]), np.array([-box_len, -box_len])]
+    additions = [np.array([box_len, 0]), np.array([-box_len, 0]), np.array([0, box_len]), np.array([0, -box_len]),
+                 np.array([box_len, box_len]), np.array([-box_len, box_len]), np.array([box_len, -box_len]),
+                 np.array([-box_len, -box_len])]
+
+
     parenthood = np.ones((1, 2)) * -1
     # Add a column for the indexes of the nodes
     df.loc[:, "index"] = df.index
@@ -76,27 +115,12 @@ def GetEdge(
     for dfi in dfs:
 
         combdf = pd.merge(dfi, dfi, on='key').drop("key", axis=1)
-        #combdf = pd.merge(dfi, dfi, on="key").drop("key", axis=1)
 
         # Compute distances between centroids
-        
-        combdf.loc[:, "diff"] = combdf.centroid_x - (combdf.centroid_y)
-        combdf.loc[:, "feature-dist"] = combdf["diff"].apply(
-            lambda diff: np.linalg.norm(diff, ord=2)
-        )
+        D = get_distance_matrix(dfi, box_len)
+        d = D.reshape(D.size)
+        combdf.loc[:, "feature-dist"] = d
         combdf = combdf[combdf["feature-dist"] != 0.0]
-        #print(combdf)
-        #print("111")
-        #Modifying distances á la periodic boundary condition
-
-        for i in combdf.index:
-            for addition in reflection_additions:
-                reflected_diff = combdf["diff"][i] + addition
-                reflected_distance = np.linalg.norm(reflected_diff, ord=2)
-                if reflected_distance < combdf["feature-dist"][i]:
-                    combdf.at[i, "diff"] = reflected_diff
-                    combdf.at[i, "feature-dist"] = reflected_distance
-
 
         # Filter out edges with a feature-distance less than scale * radius
         combdf = combdf[combdf["feature-dist"] < radius].filter(
