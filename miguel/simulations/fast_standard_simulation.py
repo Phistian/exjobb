@@ -14,13 +14,13 @@ import re
 ##PARAMETERS
 rho = 0.2  # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
 F_P = 60
-N = 1000  # for its= 1e2, sample_its = 100: 50 11, 100 46
-its = int(1e2)  # 1e5
+N = 10  # for its= 1e2, sample_its = 100: 50 11, 100 46
+its = int(1e4)  # 1e5
 sample_its = 100
 n_resets = 0  # including first run
 interact_across_borders = True
 potential_type = 'tslj'
-plot = False
+plot = True
 
 ##VARIABLES AND CONSTANTS
 its_per_reset = int(its / (n_resets + 1))
@@ -294,7 +294,7 @@ def update_data(coordinates, orientations, full_data_dict, potential_key, t):
     new_solutions = np.concatenate((active_v, passive_v), axis=1)
     full_data_dict['solution'][t*N:t*N + N, :] = new_solutions  # check if size correct
 
-    return new_coordinates2, new_orientations2
+    return new_coordinates, new_orientations
 
 
 ##SIMULATION
