@@ -13,9 +13,9 @@ import re
 
 ##PARAMETERS
 rho = 0.2  # total particle area to box_area ratio  ρ ∈ {0.1, 0.2}
-F_P = 60
-N = 2500  # for its= 1e2, sample_its = 100: 50 11, 100 46
-its = int(1e3)  # 1e5
+F_P = 3
+N = 1000  # for its= 1e2, sample_its = 100: 50 11, 100 46
+its = int(1e5)  # 1e5
 sample_its = 100
 n_resets = 0  # including first run
 interact_across_borders = True
@@ -502,7 +502,7 @@ def run_again(coordinates, orientations):
 
     if plot_last_frame:
         for i in range(N):
-            plt.scatter(all_centroids_x[i + (its - 1) * N].to_numpy(), all_centroids_y[i + (its - 1) * N].to_numpy(), color=[1, 0, 0], s=10)
+            plt.scatter(np.asnumpy(all_centroids_x[i + (its-1) * N]), np.asnumpy(all_centroids_y[i + (its-1) * N]), color=[1,0,0], s=10)
 
             ax = plt.gca()
             ax.set_aspect('equal', adjustable='box')
