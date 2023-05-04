@@ -1,1 +1,1 @@
-Place to store documents for thesis
+Temporary place to store documents for thesis
